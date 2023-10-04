@@ -11,7 +11,7 @@
 
 RCT_EXTERN_METHOD(setSubscriptionDuration:(double)duration);
 
-RCT_EXTERN_METHOD(startRecorder:(NSString *)path
+RCT_EXTERN_METHOD(startRecorder:(NSDictionary *)saveSets
                   audioSets:(NSDictionary *)audioSets
                   meteringEnabled:(BOOL)meteringEnabled
                   resolve:(RCTPromiseResolveBlock)resolve
@@ -47,5 +47,7 @@ RCT_EXTERN_METHOD(pausePlayer:(RCTPromiseResolveBlock)resolve
 
 RCT_EXTERN_METHOD(stopPlayer:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject);
+
+RCT_EXTERN_METHOD(supportedEvents)
 
 @end
