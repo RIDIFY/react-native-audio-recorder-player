@@ -61,6 +61,7 @@ export enum AVEncodingOption {
   amr = 'amr',
   flac = 'flac',
   opus = 'opus',
+  wav = 'wav',
 }
 
 type AVEncodingType =
@@ -77,7 +78,8 @@ type AVEncodingType =
   | AVEncodingOption.alac
   | AVEncodingOption.amr
   | AVEncodingOption.flac
-  | AVEncodingOption.opus;
+  | AVEncodingOption.opus
+  | AVEncodingOption.wav;
 
 export enum AVModeIOSOption {
   gamechat = 'gamechat',
@@ -148,6 +150,14 @@ export type PlayBackType = {
   isMuted?: boolean;
   currentPosition: number;
   duration: number;
+};
+
+export type SaveSet = {
+  SaveTimeCycleSecondIOS: number;
+  SaveMaxTimeSecondIOS: number;
+  div_id: string;
+  recordDate: string;
+  path: string;
 };
 
 class AudioRecorderPlayer {
@@ -235,7 +245,7 @@ class AudioRecorderPlayer {
    * @returns {Promise<string>}
    */
   startRecorder = async (
-    uri?: string,
+    uri?: string | SaveSet,
     audioSets?: AudioSet,
     meteringEnabled?: boolean,
   ): Promise<string> => {
