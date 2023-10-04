@@ -8,9 +8,10 @@
 import Foundation
 import AVFoundation
 
+
 @objc(RNAudioRecorderPlayer)
 class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
-    var subscriptionDuration: Double = 0.5
+    var subscriptionDuration: Double = 1
     var audioFileURL: URL?
 
     // Recorder
@@ -26,29 +27,106 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     var audioPlayer: AVPlayer!
     var playTimer: Timer?
     var timeObserverToken: Any?
+    
+    var saveTimeCycleSecond = 120; //120초 (2분)
+    var saveMaxTimeSecond = 86400;//24시간 //28800; //8시간
+    var currentTime_now = 0
+    var div_id : String?
+    var recordDate : String?
+    
+    
+    override init() {
+      super.init()
+      EventEmitter.sharedInstance.registerEventEmitter(eventEmitter: self)
+    }
 
+    
+    func uploadAudioFile(_ audioFileName : String) {
+        // 서버 엔드포인트 URL 설정
+        let serverURL = URL(string: "http://121.172.214.28/test/api/test")!
+        
+        do {
+            
+            let directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let chunkFileURL = directoryURL.appendingPathComponent("\(audioFileName)")
+            
+            if let audioFilePath = URL(string: chunkFileURL.absoluteString) {
+
+                // 파일 데이터 생성
+                print("audioFilePath : \(chunkFileURL.absoluteString)")
+                
+                if let audioData = try? Data(contentsOf: chunkFileURL) {
+                    // 고유한 Boundary 생성
+                    let boundary = "Boundary-\(UUID().uuidString)"
+                    
+                    // HTTP Request 생성
+                    var request = URLRequest(url: serverURL)
+                    request.httpMethod = "POST"
+                    
+                    // HTTP Header 설정 (multipart/form-data)
+                    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                    
+                    // HTTP Body 설정
+                    var bodyData = Data()
+                    bodyData.append("--\(boundary)\r\n".data(using: .utf8)!)
+                    bodyData.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(audioFileName)\"\r\n".data(using: .utf8)!)
+                    bodyData.append("Content-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
+                    bodyData.append(audioData)
+                    bodyData.append("\r\n".data(using: .utf8)!)
+                    bodyData.append("--\(boundary)--\r\n".data(using: .utf8)!)
+                    
+                    request.httpBody = bodyData
+                    
+                    // URLSession을 사용하여 업로드 요청 보내기
+                    let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+                        if let error = error {
+                            print("Error: \(error)")
+                            return
+                        }
+                        
+                        if let httpResponse = response as? HTTPURLResponse {
+                            print("Status Code: \(httpResponse.statusCode)")
+                            
+                            if let responseData = data, let responseString = String(data: responseData, encoding: .utf8) {
+                                print("Response Data: \(responseString)")
+                            }
+                        }
+                    }
+                    task.resume()
+                } else {
+                    print("Failed to load audio file")
+                }
+            }
+                
+            
+        } catch {
+            print("Error loading audio file: \(error)")
+        }
+    }
+    
+    
+    
     override static func requiresMainQueueSetup() -> Bool {
       return true
     }
 
     override func supportedEvents() -> [String]! {
-        return ["rn-playback", "rn-recordback"]
+        return ["rn-playback", "rn-recordback", "saveFileUrl"]
     }
 
     func setAudioFileURL(path: String) {
         if (path == "DEFAULT") {
-            let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            audioFileURL = cachesDirectory.appendingPathComponent("sound.m4a")
+            let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            audioFileURL = documentDirectory.appendingPathComponent("sound.wav")
         } else if (path.hasPrefix("http://") || path.hasPrefix("https://") || path.hasPrefix("file://")) {
             audioFileURL = URL(string: path)
         } else {
-            let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            audioFileURL = cachesDirectory.appendingPathComponent(path)
+            let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            audioFileURL = documentDirectory.appendingPathComponent(path)
         }
     }
 
     /**********               Recorder               **********/
-
     @objc(updateRecorderProgress:)
     public func updateRecorderProgress(timer: Timer) -> Void {
         if (audioRecorder != nil) {
@@ -64,7 +142,75 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 "currentPosition": audioRecorder.currentTime * 1000,
                 "currentMetering": currentMetering,
             ] as [String : Any];
+            
+            
+            currentTime_now+=1
+            
+            print("audioRecorder.currentTime : \(audioRecorder.currentTime))")
+            print("currentTime_now : \(currentTime_now))")
+                
+            do{
+                
+                if(currentTime_now % saveTimeCycleSecond == 0) {
+                    
+                    // 파일 읽기
+                    if let originalAudioData = try? Data(contentsOf: audioFileURL!) {
+                        do {
+                            audioRecorder.stop()
+                            
+                            let asset: AVAsset = AVAsset(url: audioFileURL!)
+                            let duration = CMTimeGetSeconds(asset.duration)
+                            
+                            print("audioFileURL.url duration : \(duration)")
+                            
+                            let dateFormatter = DateFormatter()
+                            dateFormatter.dateFormat = "yyyyMMdd"
+                            let dateString = dateFormatter.string(from:Date())
+                            
+                            
+                            let directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                                                    
+                            let chunkFileName = "\(div_id ?? "temp")_\(recordDate ?? dateString)_\(currentTime_now/saveTimeCycleSecond < 10 ? "0" : "")\(currentTime_now/saveTimeCycleSecond).wav"
+                            
+                            let chunkFileURL = directoryURL.appendingPathComponent("\(chunkFileName)")
+                            
+                        
+                            try originalAudioData.write(to: chunkFileURL)
+                        
+                        
+//                           self.uploadAudioFile(chunkFileName)
+                            
 
+                            sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString]);
+                            
+                        } catch {
+                            print("Error saving chunk: \(error)")
+                        }
+                        
+                    } else {
+                        print("Failed to load original audio file")
+                    }
+                    
+                    
+                    if(currentTime_now > saveMaxTimeSecond) {
+                       
+                        audioRecorder.stop()
+
+                        if (recordTimer != nil) {
+                            recordTimer!.invalidate()
+                            recordTimer = nil
+                        }
+                        
+                    }else {
+                        audioRecorder.record()
+                    }
+                    
+                }
+            
+            } catch {
+                print("Error playing received audio: \(error)")
+            }
+            
             sendEvent(withName: "rn-recordback", body: status)
         }
     }
@@ -139,9 +285,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     }
 
     /**********               Player               **********/
-
     @objc(startRecorder:audioSets:meteringEnabled:resolve:reject:)
-    func startRecorder(path: String,  audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
+    func startRecorder(saveSets: [String: Any], audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
        rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
 
         _meteringEnabled = meteringEnabled;
@@ -160,6 +305,14 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         var audioQuality = audioSets["AVEncoderAudioQualityKeyIOS"] as? Int
         var bitRate = audioSets["AVEncoderBitRateKeyIOS"] as? Int
 
+        
+        currentTime_now = 0
+        saveTimeCycleSecond = saveSets["SaveTimeCycleSecondIOS"] as? Int ?? 120; //120초 (2분)
+        saveMaxTimeSecond = saveSets["SaveMaxTimeSecondIOS"] as? Int ?? 86400;//24시간 //28800; //8시간
+        div_id = saveSets["div_id"] as? String
+        recordDate = saveSets["recordDate"] as? String
+        
+        let path = saveSets["path"] as? String ?? "audio.wav"
         setAudioFileURL(path: path)
 
         if (sampleRate == nil) {
@@ -199,6 +352,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 }
             } else if (encoding == "opus") {
                 avFormat = Int(kAudioFormatOpus)
+            } else if(encoding == "wav") {
+                avFormat = Int(kAudioFormatLinearPCM)
             }
         }
 
@@ -301,6 +456,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) -> Void {
+        
+        
         if (audioRecorder == nil) {
             reject("RNAudioPlayerRecorder", "Failed to stop recorder. It is already nil.", nil)
             return
@@ -312,8 +469,10 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             recordTimer!.invalidate()
             recordTimer = nil
         }
-
+        
+        
         resolve(audioFileURL?.absoluteString)
+        
     }
 
     func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
@@ -362,8 +521,10 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         } catch {
             reject("RNAudioPlayerRecorder", "Failed to play", nil)
         }
+//        
+        audioFileURL = URL(string: path)
 
-        setAudioFileURL(path: path)
+        setAudioFileURL(path: audioFileURL!.absoluteString)
         audioPlayerAsset = AVURLAsset(url: audioFileURL!, options:["AVURLAssetHTTPHeaderFieldsKey": httpHeaders])
         audioPlayerItem = AVPlayerItem(asset: audioPlayerAsset!)
 
@@ -372,7 +533,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         } else {
             audioPlayer.replaceCurrentItem(with: audioPlayerItem)
         }
-
+        print("audioPlayer.currentItem : \(audioPlayer.currentTime())")
+        
         addPeriodicTimeObserver()
         audioPlayer.play()
         resolve(audioFileURL?.absoluteString)
@@ -443,4 +605,10 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         audioPlayer.volume = volume
         resolve(volume)
     }
+}
+extension RNAudioRecorderPlayer: URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        print("progress = ", Double(bytesSent) / Double(totalBytesSent))
+    }
+    
 }
