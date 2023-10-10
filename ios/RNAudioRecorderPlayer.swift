@@ -307,8 +307,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 
         
         currentTime_now = 0
-        saveTimeCycleSecond = saveSets["SaveTimeCycleSecondIOS"] as? Int ?? 120; //120초 (2분)
-        saveMaxTimeSecond = saveSets["SaveMaxTimeSecondIOS"] as? Int ?? 86400;//24시간 //28800; //8시간
+        saveTimeCycleSecond = saveSets["SaveTimeCycleSecond"] as? Int ?? 120; //120초 (2분)
+        saveMaxTimeSecond = saveSets["SaveMaxTimeSecond"] as? Int ?? 86400;//24시간 //28800; //8시간
         div_id = saveSets["div_id"] as? String
         recordDate = saveSets["recordDate"] as? String
         
