@@ -181,7 +181,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 //                           self.uploadAudioFile(chunkFileName)
                             
 
-                            sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString]);
+                            sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString , "isLast" :currentTime_now == saveMaxTimeSecond ]);
                             
                         } catch {
                             print("Error saving chunk: \(error)")
@@ -192,7 +192,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                     }
                     
                     
-                    if(currentTime_now > saveMaxTimeSecond) {
+                    if(currentTime_now >= saveMaxTimeSecond) {
                        
                         audioRecorder.stop()
 
