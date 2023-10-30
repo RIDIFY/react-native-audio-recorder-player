@@ -35,6 +35,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     var recordDate : String?
     
     
+    var recordTimerExcute = DispatchWorkItem(block: { } )
+    
     override init() {
       super.init()
       EventEmitter.sharedInstance.registerEventEmitter(eventEmitter: self)
@@ -129,6 +131,10 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     /**********               Recorder               **********/
     @objc(updateRecorderProgress:)
     public func updateRecorderProgress(timer: Timer) -> Void {
+        recorderProgress(timer: timer, isLast: false)
+    }
+
+    func recorderProgress(timer:Timer, isLast:Bool) {
         if (audioRecorder != nil) {
             var currentMetering: Float = 0
 
@@ -151,7 +157,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 
             do{
                 
-                if(currentTime_now % saveTimeCycleSecond == 0) {
+                
+                if(currentTime_now % saveTimeCycleSecond == 0 || currentTime_now >= saveMaxTimeSecond || isLast) {
                     
                     // 파일 읽기
                     if let originalAudioData = try? Data(contentsOf: audioFileURL!) {
@@ -181,7 +188,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 //                           self.uploadAudioFile(chunkFileName)
                             
 
-                            sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString , "isLast" :currentTime_now == saveMaxTimeSecond ]);
+                            sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString , "isLast" :currentTime_now >= saveMaxTimeSecond || isLast ]);
                             
                         } catch {
                             print("Error saving chunk: \(error)")
@@ -214,7 +221,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             sendEvent(withName: "rn-recordback", body: status)
         }
     }
-
+    
     @objc(startRecorderTimer)
     func startRecorderTimer() -> Void {
         DispatchQueue.main.async {
@@ -240,6 +247,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         recordTimer?.invalidate()
         recordTimer = nil;
 
+        
         audioRecorder.pause()
         resolve("Recorder paused!")
     }
@@ -283,10 +291,11 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     func setSubscriptionDuration(duration: Double) -> Void {
         subscriptionDuration = duration
     }
+ 
 
     /**********               Player               **********/
-    @objc(startRecorder:audioSets:meteringEnabled:resolve:reject:)
-    func startRecorder(saveSets: [String: Any], audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
+    @objc(startRecorder:saveSets:audioSets:meteringEnabled:resolve:reject:)
+    func startRecorder(reservationSecond: Double, saveSets: [String: Any], audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
        rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
 
         _meteringEnabled = meteringEnabled;
@@ -307,7 +316,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 
         
         currentTime_now = 0
-        saveTimeCycleSecond = saveSets["SaveTimeCycleSecond"] as? Int ?? 120; //120초 (2분)
+        saveTimeCycleSecond = saveSets["SaveTimeCycleSecond"] as? Int ?? 300; //120초 (2분)
         saveMaxTimeSecond = saveSets["SaveMaxTimeSecond"] as? Int ?? 86400;//24시간 //28800; //8시간
         div_id = saveSets["div_id"] as? String
         recordDate = saveSets["recordDate"] as? String
@@ -391,8 +400,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         if (bitRate == nil) {
             bitRate = 128000
         }
-
-        func startRecording() {
+        
+        func startRecording(isStnadBy:Bool) {
             let settings = [
                 AVSampleRateKey: sampleRate!,
                 AVFormatIDKey: avFormat!,
@@ -405,6 +414,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 AVEncoderBitRateKey: bitRate!
             ] as [String : Any]
 
+            
             do {
                 audioRecorder = try AVAudioRecorder(url: audioFileURL!, settings: settings)
 
@@ -419,8 +429,24 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                         return
                     }
 
-                    startRecorderTimer()
-
+//                    if(!isStnadBy) {
+                        startRecorderTimer()
+//                    }
+//                    
+//                    if(isStnadBy) {
+//                        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: {
+//                            if(self.audioRecorder != nil && self.audioRecorder.isRecording) {
+//                                self.audioRecorder.stop()
+//                                
+//                            }
+//                            print("stnadby")
+//                            //스탠바이 완료되었다고 리넥트쪽으로 이벤트보내고 이벤트 올때 까지 리넥트에서는 로딩하기.
+//                        })
+//                        
+//                        
+//                    }
+//                    
+                    
                     resolve(audioFileURL?.absoluteString)
                     return
                 }
@@ -440,7 +466,16 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             audioSession.requestRecordPermission { granted in
                 DispatchQueue.main.async {
                     if granted {
-                        startRecording()
+                        
+//                        DispatchQueue.global().sync {
+//                            startRecording(isStnadBy: true)
+//                        }
+                        
+                        self.recordTimerExcute = DispatchWorkItem(block: { print("startRecording!")
+                            startRecording(isStnadBy: false) } )
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0, execute: self.recordTimerExcute)
+                        
                     } else {
                         reject("RNAudioPlayerRecorder", "Record permission not granted", nil)
                     }
@@ -450,6 +485,27 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             reject("RNAudioPlayerRecorder", "Failed to record", nil)
         }
     }
+    
+    
+    @objc(stopRecorderReservation:rejecter:)
+    public func stopRecorderReservation(
+        resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) -> Void {
+        
+        if(audioRecorder != nil && audioRecorder.isRecording) {
+            audioRecorder.stop()
+            
+            if (recordTimer != nil) {
+                recordTimer!.invalidate()
+                recordTimer = nil
+            }
+        }
+        
+        self.recordTimerExcute.cancel()
+        resolve(nil)
+    }
+    
 
     @objc(stopRecorder:rejecter:)
     public func stopRecorder(
@@ -463,13 +519,18 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             return
         }
 
-        audioRecorder.stop()
-
+        DispatchQueue.main.async {
+            self.recorderProgress(timer: Timer(), isLast: true)
+        }
+        
+        if(audioRecorder != nil && audioRecorder.isRecording) {
+            audioRecorder.stop()
+        }
         if (recordTimer != nil) {
             recordTimer!.invalidate()
             recordTimer = nil
         }
-        
+        //ENDEvent로 마지막 기존값에서 isLast값을 end로만 보내면됨.
         
         resolve(audioFileURL?.absoluteString)
         

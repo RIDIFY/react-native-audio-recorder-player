@@ -245,6 +245,7 @@ class AudioRecorderPlayer {
    * @returns {Promise<string>}
    */
   startRecorder = async (
+    reservationSecond?: number,
     uri?: string | SaveSet,
     audioSets?: AudioSet,
     meteringEnabled?: boolean,
@@ -253,14 +254,27 @@ class AudioRecorderPlayer {
       this._isRecording = true;
 
       return RNAudioRecorderPlayer.startRecorder(
+        reservationSecond ?? 0,
         uri ?? 'DEFAULT',
         audioSets,
         meteringEnabled ?? false,
       );
     }
-
     return 'Already recording';
   };
+
+
+   /**
+   * Stop reservationRecord.
+   * @returns {Promise<string>}
+   */
+   stopRecorderReservation = async (): Promise<string> => {
+    if (this._isRecording) {
+      this._isRecording = false;
+    }
+    return RNAudioRecorderPlayer.stopRecorderReservation();
+  };
+
 
   /**
    * Pause recording.

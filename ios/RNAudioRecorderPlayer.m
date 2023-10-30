@@ -11,13 +11,17 @@
 
 RCT_EXTERN_METHOD(setSubscriptionDuration:(double)duration);
 
-RCT_EXTERN_METHOD(startRecorder:(NSDictionary *)saveSets
+RCT_EXTERN_METHOD(startRecorder:(double)reservationSecond
+                  saveSets:(NSDictionary *)saveSets
                   audioSets:(NSDictionary *)audioSets
                   meteringEnabled:(BOOL)meteringEnabled
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject);
 
 RCT_EXTERN_METHOD(stopRecorder:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject);
+
+RCT_EXTERN_METHOD(stopRecorderReservation:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject);
 
 RCT_EXTERN_METHOD(pauseRecorder:(RCTPromiseResolveBlock)resolve
