@@ -208,7 +208,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                             recordTimer = nil
                         }
                         
-                    }else {
+                    }else if(!isLast) {
                         audioRecorder.record()
                     }
                     
