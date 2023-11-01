@@ -35,6 +35,16 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     var recordDate : String?
     
     
+    // Alarm
+    var isAlarm = false
+    var alarmAmPm = 0
+    var alarmHourStr = "00"
+    var alarmMinStr = "00"
+    var alarmSource = ""
+    var alarmIsRepeat = false
+    
+    
+    
     var recordTimerExcute = DispatchWorkItem(block: { } )
     
     override init() {
@@ -136,6 +146,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 
     func recorderProgress(timer:Timer, isLast:Bool) {
         if (audioRecorder != nil) {
+            
             var currentMetering: Float = 0
 
             if (_meteringEnabled) {
@@ -156,6 +167,57 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             print("currentTime_now : \(currentTime_now))")
                 
             do{
+                
+                
+                //Alarm Start
+                if(isAlarm) {
+                    //timer Check
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "HH:mm:ss"
+                    let nowTime = formatter.string(from: Date())
+                    let alarmTime = "\(alarmHourStr):\(alarmMinStr):00"
+                    
+                    print(nowTime)
+                    print(alarmTime)
+                    print(alarmTime == nowTime)
+                    
+                    if(alarmTime == nowTime) {
+                        let url = Bundle.main.url(forResource: alarmSource.replacingOccurrences(of: ".mp3", with: ""), withExtension: "mp3")!
+                
+                        audioSession = AVAudioSession.sharedInstance()
+                
+                        do {
+                            try audioSession.setCategory(.playAndRecord, mode: .default, options: [AVAudioSession.CategoryOptions.defaultToSpeaker, AVAudioSession.CategoryOptions.allowBluetooth])
+                            try audioSession.setActive(true)
+                        } catch {
+                //            reject("RNAudioPlayerRecorder", "Failed to play", nil)
+                        }
+                
+                        audioFileURL = url
+                
+                        setAudioFileURL(path: audioFileURL!.absoluteString)
+                        audioPlayerAsset = AVURLAsset(url: audioFileURL!)
+                        audioPlayerItem = AVPlayerItem(asset: audioPlayerAsset!)
+                
+                        if (audioPlayer == nil) {
+                            audioPlayer = AVPlayer(playerItem: audioPlayerItem)
+                        } else {
+                            audioPlayer.replaceCurrentItem(with: audioPlayerItem)
+                        }
+                
+                        addPeriodicTimeObserver()
+                        audioPlayer.play()
+                        
+                        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: self.audioPlayer.currentItem, queue: .main) { [weak self] _ in
+                            self?.audioPlayer?.seek(to: CMTime.zero)
+                            self?.audioPlayer?.play()
+                        }
+                
+                    }
+                }
+                // Alarm End
+                
+                
                 
                 
                 if(currentTime_now % saveTimeCycleSecond == 0 || currentTime_now >= saveMaxTimeSecond || isLast) {
@@ -199,7 +261,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                     }
                     
                     
-                    if(currentTime_now >= saveMaxTimeSecond) {
+                    if(currentTime_now >= saveMaxTimeSecond || isLast) {
                        
                         audioRecorder.stop()
 
@@ -208,7 +270,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                             recordTimer = nil
                         }
                         
-                    }else if(!isLast) {
+                    }else {
                         audioRecorder.record()
                     }
                     
@@ -292,10 +354,12 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         subscriptionDuration = duration
     }
  
+    
+    
 
     /**********               Player               **********/
-    @objc(startRecorder:saveSets:audioSets:meteringEnabled:resolve:reject:)
-    func startRecorder(reservationSecond: Double, saveSets: [String: Any], audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
+    @objc(startRecorder:saveSets:audioSets:alarmSets:meteringEnabled:resolve:reject:)
+    func startRecorder(reservationSecond: Double, saveSets: [String: Any], audioSets: [String: Any], alarmSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
        rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
 
         _meteringEnabled = meteringEnabled;
@@ -323,6 +387,24 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         
         let path = saveSets["path"] as? String ?? "audio.wav"
         setAudioFileURL(path: path)
+        
+        
+        
+        
+        isAlarm = alarmSets["isAlarm"] as? Bool ?? false
+        alarmAmPm = alarmSets["amPm"] as? Int ?? 0
+        
+        if(alarmAmPm == 0) {
+            alarmHourStr = (alarmSets["hour"] as? Int ?? 0) < 10 ? "0\(alarmSets["hour"] as? Int ?? 0)" : (alarmSets["hour"] as? Int ?? 0).description
+        }else {
+            alarmHourStr = ((alarmSets["hour"] as? Int ?? 0)+12).description
+        }
+        alarmMinStr = (alarmSets["min"] as? Int ?? 0) < 10 ? "0\((alarmSets["min"] as? Int ?? 0))" : (alarmSets["min"] as? Int ?? 0).description
+        alarmSource = (alarmSets["source"] as? String ?? "")
+        alarmIsRepeat = (alarmSets["isAlarmRepeat"] as? Bool ?? false)
+        
+        
+        
 
         if (sampleRate == nil) {
             sampleRate = 44100;
@@ -530,8 +612,12 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             recordTimer!.invalidate()
             recordTimer = nil
         }
-        //ENDEvent로 마지막 기존값에서 isLast값을 end로만 보내면됨.
         
+        //alarm End
+        if (audioPlayer != nil) {
+            audioPlayer.pause()
+            self.audioPlayer = nil;
+        }
         resolve(audioFileURL?.absoluteString)
         
     }

@@ -160,6 +160,15 @@ export type SaveSet = {
   path: string;
 };
 
+export type AlarmSet = {
+  isAlarm: boolean; 
+  amPm:number;
+  hour:number;
+  min:number;
+  source:string;
+  isAlarmRepeat:boolean;
+};
+
 class AudioRecorderPlayer {
   private _isRecording: boolean;
   private _isPlaying: boolean;
@@ -248,6 +257,7 @@ class AudioRecorderPlayer {
     reservationSecond?: number,
     uri?: string | SaveSet,
     audioSets?: AudioSet,
+    alarmSets?: AlarmSet,
     meteringEnabled?: boolean,
   ): Promise<string> => {
     if (!this._isRecording) {
@@ -257,6 +267,7 @@ class AudioRecorderPlayer {
         reservationSecond ?? 0,
         uri ?? 'DEFAULT',
         audioSets,
+        alarmSets,
         meteringEnabled ?? false,
       );
     }
@@ -318,6 +329,9 @@ class AudioRecorderPlayer {
 
     return 'Already stopped';
   };
+
+
+
 
   /**
    * Resume playing.
