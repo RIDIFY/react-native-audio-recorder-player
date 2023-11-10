@@ -38,11 +38,11 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     // Alarm
     var isAlarm = false
     var alarmAmPm = 0
-    var alarmHourStr = "00"
-    var alarmMinStr = "00"
+    var alarmHourStr = 0
+    var alarmMinStr = 0
     var alarmSource = ""
     var alarmIsRepeat = false
-    
+    var isAlarmOn = false
     
     
     var recordTimerExcute = DispatchWorkItem(block: { } )
@@ -172,16 +172,33 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 //Alarm Start
                 if(isAlarm) {
                     //timer Check
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "HH:mm:ss"
-                    let nowTime = formatter.string(from: Date())
-                    let alarmTime = "\(alarmHourStr):\(alarmMinStr):00"
+//                    let formatter = DateFormatter()
+//                    formatter.dateFormat = "HH:mm:ss"
+//                    let nowTime = formatter.string(from: Date())
+//                    let alarmTime = "\(alarmHourStr):\(alarmMinStr):00"
                     
-                    print(nowTime)
-                    print(alarmTime)
-                    print(alarmTime == nowTime)
                     
-                    if(alarmTime == nowTime) {
+                    let calendar = Calendar.current
+                    let hour = calendar.component(.hour, from: Date())
+
+                    // If you want 12-hour format
+                    let hour12 = (hour == 0 || hour == 12) ? 12 : hour % 12
+                    let minute = calendar.component(.minute, from: Date())
+                    let amPm = calendar.component(.hour, from: Date()) < 12 ? 0 : 1
+
+                    
+//                    print("지금시간")
+//                    print(hour12)
+//                    print(minute)
+//                    print(amPm)
+//                    
+//                    print("예약시간")
+//                    print(alarmHourStr)
+//                    print(alarmMinStr)
+//                    print(alarmAmPm)
+//                    
+                    if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && amPm == alarmAmPm) {
+                        isAlarmOn = true
                         let url = Bundle.main.url(forResource: alarmSource.replacingOccurrences(of: ".mp3", with: ""), withExtension: "mp3")!
                 
                         audioSession = AVAudioSession.sharedInstance()
@@ -207,10 +224,11 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 
                         addPeriodicTimeObserver()
                         audioPlayer.play()
-                        
-                        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: self.audioPlayer.currentItem, queue: .main) { [weak self] _ in
-                            self?.audioPlayer?.seek(to: CMTime.zero)
-                            self?.audioPlayer?.play()
+                        if(alarmIsRepeat){
+                            NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: self.audioPlayer.currentItem, queue: .main) { [weak self] _ in
+                                self?.audioPlayer?.seek(to: CMTime.zero)
+                                self?.audioPlayer?.play()
+                            }
                         }
                 
                     }
@@ -393,15 +411,18 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         
         isAlarm = alarmSets["isAlarm"] as? Bool ?? false
         alarmAmPm = alarmSets["amPm"] as? Int ?? 0
-        
-        if(alarmAmPm == 0) {
-            alarmHourStr = (alarmSets["hour"] as? Int ?? 0) < 10 ? "0\(alarmSets["hour"] as? Int ?? 0)" : (alarmSets["hour"] as? Int ?? 0).description
-        }else {
-            alarmHourStr = ((alarmSets["hour"] as? Int ?? 0)+12).description
-        }
-        alarmMinStr = (alarmSets["min"] as? Int ?? 0) < 10 ? "0\((alarmSets["min"] as? Int ?? 0))" : (alarmSets["min"] as? Int ?? 0).description
+        alarmHourStr = alarmSets["hour"] as? Int ?? 0;
+        alarmMinStr = alarmSets["min"] as? Int ?? 0
         alarmSource = (alarmSets["source"] as? String ?? "")
         alarmIsRepeat = (alarmSets["isAlarmRepeat"] as? Bool ?? false)
+        
+//        if(alarmAmPm == 0) {
+//            alarmHourStr = (alarmSets["hour"] as? Int ?? 0) < 10 ? "0\(alarmSets["hour"] as? Int ?? 0)" : (alarmSets["hour"] as? Int ?? 0).description
+//        }else {
+//            alarmHourStr = ((alarmSets["hour"] as? Int ?? 0)+12).description
+//        }
+//        alarmMinStr = (alarmSets["min"] as? Int ?? 0) < 10 ? "0\((alarmSets["min"] as? Int ?? 0))" : (alarmSets["min"] as? Int ?? 0).description
+        
         
         
         
