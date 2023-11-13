@@ -408,7 +408,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         
         
         
-        
+        isAlarmOn = false
         isAlarm = alarmSets["isAlarm"] as? Bool ?? false
         alarmAmPm = alarmSets["amPm"] as? Int ?? 0
         alarmHourStr = alarmSets["hour"] as? Int ?? 0;
