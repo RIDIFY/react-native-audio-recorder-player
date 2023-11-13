@@ -199,6 +199,9 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 //                    
                     if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && amPm == alarmAmPm) {
                         isAlarmOn = true
+                        sendEvent(withName: "isAlarmOn", body: []);
+
+
                         let url = Bundle.main.url(forResource: alarmSource.replacingOccurrences(of: ".mp3", with: ""), withExtension: "mp3")!
                 
                         audioSession = AVAudioSession.sharedInstance()
