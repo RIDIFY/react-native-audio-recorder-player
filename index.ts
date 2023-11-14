@@ -404,12 +404,13 @@ class AudioRecorderPlayer {
    * @returns {Promise<string>}
    */
   stopPlayer = async (): Promise<string> => {
-    if (this._isPlaying) {
+    //231114110700 - 최은화 : this.isPlaying가 undefined로 나오면서 걸러지기때문에 일단 주석처리로 진행.
+    // if (this._isPlaying) {
       this._isPlaying = false;
       this._hasPaused = false;
 
       return RNAudioRecorderPlayer.stopPlayer();
-    }
+    // }
 
     return 'Already stopped playing';
   };

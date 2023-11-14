@@ -638,10 +638,10 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         }
         
         //alarm End
-        if (audioPlayer != nil) {
-            audioPlayer.pause()
-            self.audioPlayer = nil;
-        }
+        // if (audioPlayer != nil) {
+        //     audioPlayer.pause()
+        //     self.audioPlayer = nil;
+        // }
         resolve(audioFileURL?.absoluteString)
         
     }
