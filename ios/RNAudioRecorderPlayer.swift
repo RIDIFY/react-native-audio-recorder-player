@@ -184,6 +184,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                     // If you want 12-hour format
                     let hour12 = (hour == 0 || hour == 12) ? 12 : hour % 12
                     let minute = calendar.component(.minute, from: Date())
+                    let second = calendar.component(.second, from: Date())
                     let amPm = calendar.component(.hour, from: Date()) < 12 ? 0 : 1
 
                     
@@ -197,7 +198,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
 //                    print(alarmMinStr)
 //                    print(alarmAmPm)
 //                    
-                    if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && amPm == alarmAmPm) {
+                    if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && second == 0 && amPm == alarmAmPm) {
                         isAlarmOn = true
                         sendEvent(withName: "isAlarmOn", body: []);
 
