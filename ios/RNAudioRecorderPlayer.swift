@@ -51,71 +51,6 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
       super.init()
       EventEmitter.sharedInstance.registerEventEmitter(eventEmitter: self)
     }
-
-    
-    func uploadAudioFile(_ audioFileName : String) {
-        // 서버 엔드포인트 URL 설정
-        let serverURL = URL(string: "http://121.172.214.28/test/api/test")!
-        
-        do {
-            
-            let directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let chunkFileURL = directoryURL.appendingPathComponent("\(audioFileName)")
-            
-            if let audioFilePath = URL(string: chunkFileURL.absoluteString) {
-
-                // 파일 데이터 생성
-                print("audioFilePath : \(chunkFileURL.absoluteString)")
-                
-                if let audioData = try? Data(contentsOf: chunkFileURL) {
-                    // 고유한 Boundary 생성
-                    let boundary = "Boundary-\(UUID().uuidString)"
-                    
-                    // HTTP Request 생성
-                    var request = URLRequest(url: serverURL)
-                    request.httpMethod = "POST"
-                    
-                    // HTTP Header 설정 (multipart/form-data)
-                    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-                    
-                    // HTTP Body 설정
-                    var bodyData = Data()
-                    bodyData.append("--\(boundary)\r\n".data(using: .utf8)!)
-                    bodyData.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(audioFileName)\"\r\n".data(using: .utf8)!)
-                    bodyData.append("Content-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
-                    bodyData.append(audioData)
-                    bodyData.append("\r\n".data(using: .utf8)!)
-                    bodyData.append("--\(boundary)--\r\n".data(using: .utf8)!)
-                    
-                    request.httpBody = bodyData
-                    
-                    // URLSession을 사용하여 업로드 요청 보내기
-                    let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
-                        if let error = error {
-                            print("Error: \(error)")
-                            return
-                        }
-                        
-                        if let httpResponse = response as? HTTPURLResponse {
-                            print("Status Code: \(httpResponse.statusCode)")
-                            
-                            if let responseData = data, let responseString = String(data: responseData, encoding: .utf8) {
-                                print("Response Data: \(responseString)")
-                            }
-                        }
-                    }
-                    task.resume()
-                } else {
-                    print("Failed to load audio file")
-                }
-            }
-                
-            
-        } catch {
-            print("Error loading audio file: \(error)")
-        }
-    }
-    
     
     
     override static func requiresMainQueueSetup() -> Bool {
@@ -168,79 +103,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 
             do{
                 
-                
-                //Alarm Start
-                if(isAlarm) {
-                    //timer Check
-//                    let formatter = DateFormatter()
-//                    formatter.dateFormat = "HH:mm:ss"
-//                    let nowTime = formatter.string(from: Date())
-//                    let alarmTime = "\(alarmHourStr):\(alarmMinStr):00"
-                    
-                    
-                    let calendar = Calendar.current
-                    let hour = calendar.component(.hour, from: Date())
-
-                    // If you want 12-hour format
-                    let hour12 = (hour == 0 || hour == 12) ? 12 : hour % 12
-                    let minute = calendar.component(.minute, from: Date())
-                    let second = calendar.component(.second, from: Date())
-                    let amPm = calendar.component(.hour, from: Date()) < 12 ? 0 : 1
-
-                    
-//                    print("지금시간")
-//                    print(hour12)
-//                    print(minute)
-//                    print(amPm)
-//                    
-//                    print("예약시간")
-//                    print(alarmHourStr)
-//                    print(alarmMinStr)
-//                    print(alarmAmPm)
-//                    
-                    if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && second == 0 && amPm == alarmAmPm) {
-                        isAlarmOn = true
-                        sendEvent(withName: "isAlarmOn", body: []);
-
-
-                        let url = Bundle.main.url(forResource: alarmSource.replacingOccurrences(of: ".mp3", with: ""), withExtension: "mp3")!
-                
-                        audioSession = AVAudioSession.sharedInstance()
-                
-                        do {
-                            try audioSession.setCategory(.playAndRecord, mode: .default, options: [AVAudioSession.CategoryOptions.defaultToSpeaker, AVAudioSession.CategoryOptions.allowBluetooth])
-                            try audioSession.setActive(true)
-                        } catch {
-                //            reject("RNAudioPlayerRecorder", "Failed to play", nil)
-                        }
-                
-                        audioFileURL = url
-                
-                        setAudioFileURL(path: audioFileURL!.absoluteString)
-                        audioPlayerAsset = AVURLAsset(url: audioFileURL!)
-                        audioPlayerItem = AVPlayerItem(asset: audioPlayerAsset!)
-                
-                        if (audioPlayer == nil) {
-                            audioPlayer = AVPlayer(playerItem: audioPlayerItem)
-                        } else {
-                            audioPlayer.replaceCurrentItem(with: audioPlayerItem)
-                        }
-                
-                        addPeriodicTimeObserver()
-                        audioPlayer.play()
-                        if(alarmIsRepeat){
-                            NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: self.audioPlayer.currentItem, queue: .main) { [weak self] _ in
-                                self?.audioPlayer?.seek(to: CMTime.zero)
-                                self?.audioPlayer?.play()
-                            }
-                        }
-                
-                    }
-                }
-                // Alarm End
-                
-                
-                
+                alarmCheck()
                 
                 if(currentTime_now % saveTimeCycleSecond == 0 || currentTime_now >= saveMaxTimeSecond || isLast) {
                     
@@ -269,9 +132,6 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                             try originalAudioData.write(to: chunkFileURL)
                         
                         
-//                           self.uploadAudioFile(chunkFileName)
-                            
-
                             sendEvent(withName: "saveFileUrl", body: ["url": chunkFileURL.absoluteString , "isLast" :currentTime_now >= saveMaxTimeSecond || isLast ]);
                             
                         } catch {
@@ -305,6 +165,89 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             sendEvent(withName: "rn-recordback", body: status)
         }
     }
+    
+    
+    
+    
+    
+    
+    func alarmCheck() -> Void {
+        
+//        print("alarmCheck")
+//        print("isAlarm : \(isAlarm)")
+        
+        //Alarm Start
+        if(isAlarm) {
+            
+            let calendar = Calendar.current
+            let hour = calendar.component(.hour, from: Date())
+
+            // If you want 12-hour format
+            let hour12 = (hour == 0 || hour == 12) ? 12 : hour % 12
+            let minute = calendar.component(.minute, from: Date())
+            let second = calendar.component(.second, from: Date())
+            let amPm = calendar.component(.hour, from: Date()) < 12 ? 0 : 1
+
+
+            if(isAlarmOn == false && hour12 == alarmHourStr && minute == alarmMinStr && second == 0 && amPm == alarmAmPm) {
+                isAlarmOn = true
+                sendEvent(withName: "isAlarmOn", body: []);
+
+
+                let url = Bundle.main.url(forResource: alarmSource.replacingOccurrences(of: ".mp3", with: ""), withExtension: "mp3")!
+        
+                audioSession = AVAudioSession.sharedInstance()
+        
+                do {
+                    try audioSession.setCategory(.playAndRecord, mode: .default, options: [AVAudioSession.CategoryOptions.defaultToSpeaker, AVAudioSession.CategoryOptions.allowBluetooth])
+                    try audioSession.setActive(true)
+                } catch {
+        //            reject("RNAudioPlayerRecorder", "Failed to play", nil)
+                }
+        
+                audioFileURL = url
+        
+                setAudioFileURL(path: audioFileURL!.absoluteString)
+                audioPlayerAsset = AVURLAsset(url: audioFileURL!)
+                audioPlayerItem = AVPlayerItem(asset: audioPlayerAsset!)
+        
+                if (audioPlayer == nil) {
+                    audioPlayer = AVPlayer(playerItem: audioPlayerItem)
+                } else {
+                    audioPlayer.replaceCurrentItem(with: audioPlayerItem)
+                }
+        
+                addPeriodicTimeObserver()
+                audioPlayer.play()
+                if(alarmIsRepeat){
+                    NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: self.audioPlayer.currentItem, queue: .main) { [weak self] _ in
+                        self?.audioPlayer?.seek(to: CMTime.zero)
+                        self?.audioPlayer?.play()
+                    }
+                }
+        
+            }
+        }
+        // Alarm End
+    }
+    
+    
+    @objc(setAlarm:)
+    func setAlarm(alarmSets: [String: Any]) -> Void {
+        
+        isAlarmOn = false
+        isAlarm = alarmSets["isAlarm"] as? Bool ?? false
+        alarmAmPm = alarmSets["amPm"] as? Int ?? 0
+        alarmHourStr = alarmSets["hour"] as? Int ?? 0;
+        alarmMinStr = alarmSets["min"] as? Int ?? 0
+        alarmSource = (alarmSets["source"] as? String ?? "")
+        alarmIsRepeat = (alarmSets["isAlarmRepeat"] as? Bool ?? false)
+        
+//        print("setAlarm _ alarmSets")
+//        print(alarmSets)
+    }
+    
+    
     
     @objc(startRecorderTimer)
     func startRecorderTimer() -> Void {
@@ -380,8 +323,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     
 
     /**********               Player               **********/
-    @objc(startRecorder:saveSets:audioSets:alarmSets:meteringEnabled:resolve:reject:)
-    func startRecorder(reservationSecond: Double, saveSets: [String: Any], audioSets: [String: Any], alarmSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
+    @objc(startRecorder:saveSets:audioSets:meteringEnabled:resolve:reject:)
+    func startRecorder(reservationSecond: Double, saveSets: [String: Any], audioSets: [String: Any], meteringEnabled: Bool, resolve: @escaping RCTPromiseResolveBlock,
        rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
 
         _meteringEnabled = meteringEnabled;
@@ -409,26 +352,6 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         
         let path = saveSets["path"] as? String ?? "audio.wav"
         setAudioFileURL(path: path)
-        
-        
-        
-        isAlarmOn = false
-        isAlarm = alarmSets["isAlarm"] as? Bool ?? false
-        alarmAmPm = alarmSets["amPm"] as? Int ?? 0
-        alarmHourStr = alarmSets["hour"] as? Int ?? 0;
-        alarmMinStr = alarmSets["min"] as? Int ?? 0
-        alarmSource = (alarmSets["source"] as? String ?? "")
-        alarmIsRepeat = (alarmSets["isAlarmRepeat"] as? Bool ?? false)
-        
-//        if(alarmAmPm == 0) {
-//            alarmHourStr = (alarmSets["hour"] as? Int ?? 0) < 10 ? "0\(alarmSets["hour"] as? Int ?? 0)" : (alarmSets["hour"] as? Int ?? 0).description
-//        }else {
-//            alarmHourStr = ((alarmSets["hour"] as? Int ?? 0)+12).description
-//        }
-//        alarmMinStr = (alarmSets["min"] as? Int ?? 0) < 10 ? "0\((alarmSets["min"] as? Int ?? 0))" : (alarmSets["min"] as? Int ?? 0).description
-        
-        
-        
         
 
         if (sampleRate == nil) {
@@ -536,24 +459,8 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                         return
                     }
 
-//                    if(!isStnadBy) {
-                        startRecorderTimer()
-//                    }
-//                    
-//                    if(isStnadBy) {
-//                        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: {
-//                            if(self.audioRecorder != nil && self.audioRecorder.isRecording) {
-//                                self.audioRecorder.stop()
-//                                
-//                            }
-//                            print("stnadby")
-//                            //스탠바이 완료되었다고 리넥트쪽으로 이벤트보내고 이벤트 올때 까지 리넥트에서는 로딩하기.
-//                        })
-//                        
-//                        
-//                    }
-//                    
-                    
+                    startRecorderTimer()
+
                     resolve(audioFileURL?.absoluteString)
                     return
                 }
@@ -573,10 +480,6 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             audioSession.requestRecordPermission { granted in
                 DispatchQueue.main.async {
                     if granted {
-                        
-//                        DispatchQueue.global().sync {
-//                            startRecording(isStnadBy: true)
-//                        }
                         
                         self.recordTimerExcute = DispatchWorkItem(block: { print("startRecording!")
                             startRecording(isStnadBy: false) } )

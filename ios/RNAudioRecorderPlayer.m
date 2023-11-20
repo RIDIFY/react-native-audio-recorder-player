@@ -11,10 +11,11 @@
 
 RCT_EXTERN_METHOD(setSubscriptionDuration:(double)duration);
 
+RCT_EXTERN_METHOD(setAlarm:(NSDictionary *)alarmSets);
+
 RCT_EXTERN_METHOD(startRecorder:(double)reservationSecond
                   saveSets:(NSDictionary *)saveSets
                   audioSets:(NSDictionary *)audioSets
-                  alarmSets:(NSDictionary *)alarmSets
                   meteringEnabled:(BOOL)meteringEnabled
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject);

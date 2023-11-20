@@ -248,6 +248,20 @@ class AudioRecorderPlayer {
     this._playerCallback = null;
   };
 
+
+
+  setAlarm = (
+    alarmSets?: AlarmSet,
+  ): void => {
+    RNAudioRecorderPlayer.setAlarm(
+      alarmSets,
+    );
+  };
+
+
+
+
+
   /**
    * start recording with param.
    * @param {string} uri audio uri.
@@ -257,7 +271,6 @@ class AudioRecorderPlayer {
     reservationSecond?: number,
     uri?: string | SaveSet,
     audioSets?: AudioSet,
-    alarmSets?: AlarmSet,
     meteringEnabled?: boolean,
   ): Promise<string> => {
     if (!this._isRecording) {
@@ -267,7 +280,6 @@ class AudioRecorderPlayer {
         reservationSecond ?? 0,
         uri ?? 'DEFAULT',
         audioSets,
-        alarmSets,
         meteringEnabled ?? false,
       );
     }
