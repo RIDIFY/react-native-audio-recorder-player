@@ -44,6 +44,9 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     var alarmIsRepeat = false
     var isAlarmOn = false
     
+    // 녹음 강제종료 체크.
+    var recordingStopCheckCnt = 0
+    
     
     var recordTimerExcute = DispatchWorkItem(block: { } )
     
@@ -58,7 +61,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
     }
 
     override func supportedEvents() -> [String]! {
-        return ["rn-playback", "rn-recordback", "saveFileUrl"]
+        return ["rn-playback", "rn-recordback", "saveFileUrl", "isAlarmOn", "recordingStop"]
     }
 
     func setAudioFileURL(path: String) {
@@ -100,7 +103,22 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
             
             print("audioRecorder.currentTime : \(audioRecorder.currentTime))")
             print("currentTime_now : \(currentTime_now))")
-                
+            print("audioRecorder isRecording : \(audioRecorder.isRecording)")
+            
+            
+            
+            // 강제종료 시 5초 후 리액트쪽으로 이벤트 전송.
+            if(!audioRecorder.isRecording) {
+                recordingStopCheckCnt+=1
+                if(recordingStopCheckCnt == 5){
+                    print("audioRecorder recordingStop sendEvent")
+                    sendEvent(withName: "recordingStop", body: []);
+                }
+            }else {
+                recordingStopCheckCnt = 0
+            }
+            
+            
             do{
                 
                 alarmCheck()
@@ -199,7 +217,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
                 audioSession = AVAudioSession.sharedInstance()
         
                 do {
-                    try audioSession.setCategory(.playAndRecord, mode: .default, options: [AVAudioSession.CategoryOptions.defaultToSpeaker, AVAudioSession.CategoryOptions.allowBluetooth])
+                    try audioSession.setCategory(.playAndRecord, mode: .default, options: [AVAudioSession.CategoryOptions.mixWithOthers, AVAudioSession.CategoryOptions.allowBluetooth])
                     try audioSession.setActive(true)
                 } catch {
         //            reject("RNAudioPlayerRecorder", "Failed to play", nil)
@@ -474,7 +492,7 @@ class RNAudioRecorderPlayer: RCTEventEmitter, AVAudioRecorderDelegate {
         audioSession = AVAudioSession.sharedInstance()
 
         do {
-            try audioSession.setCategory(.playAndRecord, mode: avMode, options: [AVAudioSession.CategoryOptions.defaultToSpeaker, AVAudioSession.CategoryOptions.allowBluetooth])
+            try audioSession.setCategory(.playAndRecord, mode: avMode, options: [AVAudioSession.CategoryOptions.mixWithOthers, AVAudioSession.CategoryOptions.allowBluetooth])
             try audioSession.setActive(true)
 
             audioSession.requestRecordPermission { granted in
